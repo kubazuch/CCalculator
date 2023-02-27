@@ -3,27 +3,24 @@
 /*
  * Divide two big integers with remainder using Knuth algorithm
  */
-void bigdiv(BigInt u, BigInt v, BigInt* quo, BigInt* rem)
+void bigdiv(BigInt* u, BigInt* v, BigInt* quo, BigInt* rem)
 {
-	short nobits;
-	int i, j;
-	long m, n, qlen;
-	register ul* uptr, * vptr, * qptr;
-	ul msw;
-	ull remainder, qhat, p;
-	long long carry, res;
+	int i;
+	register ul* uptr, * qptr;
+	ull remainder;
+	long long res;
 	BIGUNION qunion, runion;
 
 	// Check if we don't divide by 0
-	if (iszero(v))
+	if (iszero(*v))
 	{
 		fprintf(stderr, "Can't divide by zero!\n");
 		longjmp(exception, 1);
 	}
 
-	m = u.len;
-	n = v.len;
-	qlen = m - n + 1; // quotient will be at most u.len - v.len + 1
+	const long m = u->len;
+	const long n = v->len;
+	long qlen = m - n + 1; // quotient will be at most u.len - v.len + 1
 
 	if (m < n) // a is definitely smaller, we can set quo = 0, rem = a
 	{
@@ -32,10 +29,10 @@ void bigdiv(BigInt u, BigInt v, BigInt* quo, BigInt* rem)
 
 		return;
 	}
-	else if (n == 1) // divisor is only one word, we can just divide by it
+	else if (n == 1) // divisor is only one word long, we can just divide by it
 	{
 		// divisor is one, we can just copy dividend to quo
-		if (v.vals[0] == 1)
+		if (v->vals[0] == 1)
 		{
 			bigcpy(u, quo);
 			*rem = _zero;
@@ -44,9 +41,9 @@ void bigdiv(BigInt u, BigInt v, BigInt* quo, BigInt* rem)
 		}
 
 		remainder = 0;
-		uptr = u.vals + m;
+		uptr = u->vals + m;
 
-		quo->len = qlen;			// alloc space for quotient
+		quo->len = qlen; // alloc space for quotient
 		quo->vals = alloc(qlen);
 		qptr = quo->vals + qlen;
 		
@@ -54,8 +51,8 @@ void bigdiv(BigInt u, BigInt v, BigInt* quo, BigInt* rem)
 		while (qlen--)
 		{
 			remainder = remainder << 32 | *--uptr;
-			*--qptr = (ul)(remainder / v.vals[0]);	
-			remainder = remainder % v.vals[0];
+			*--qptr = (ul)(remainder / v->vals[0]);	
+			remainder = remainder % v->vals[0];
 		}
 
 		bigtrim(quo); // Trim leading 0s from result
@@ -73,30 +70,30 @@ void bigdiv(BigInt u, BigInt v, BigInt* quo, BigInt* rem)
 	 */
 
 	// 1. Normalize	(shift divisor and dividend left until MSb of divisor is 1)
-	nobits = 1;
-	msw = v.vals[n - 1];
+	short nobits = 1;
+	ul msw = v->vals[n - 1];
 	while (msw >>= 1)	// count number of bits of MSW of divisor
 		nobits++;
 
 	// normalize divisor
-	vptr = alloc(n);
+	register ul* vptr = alloc(n);
 	for (i = n - 1; i > 0; i--)
-		vptr[i] = ((ull)v.vals[i] << (32 - nobits)) | ((ull)v.vals[i - 1] >> nobits);	// Shift left whole number, borrowing bits from previous words
-	vptr[0] = v.vals[0] << (32 - nobits);	// Just shift LSW
+		vptr[i] = ((ull)v->vals[i] << (32 - nobits)) | ((ull)v->vals[i - 1] >> nobits);	// Shift left whole number, borrowing bits from previous words
+	vptr[0] = v->vals[0] << (32 - nobits);	// Just shift LSW
 
 	// normalize dividend
 	uptr = alloc(m+1);	// dividend may get bigger by one word
-	uptr[m] = (ull)u.vals[m - 1] >> nobits;	// Shift MSW overflow
+	uptr[m] = (ull)u->vals[m - 1] >> nobits;	// Shift MSW overflow
 	for (i = m - 1; i > 0; i--)
-		uptr[i] = (u.vals[i] << (32 - nobits)) | ((ull)u.vals[i - 1] >> nobits);	// Shift left whole number, borrowing bits from previous words
-	uptr[0] = u.vals[0] << (32 - nobits); // Just shift LSW
+		uptr[i] = (u->vals[i] << (32 - nobits)) | ((ull)u->vals[i - 1] >> nobits);	// Shift left whole number, borrowing bits from previous words
+	uptr[0] = u->vals[0] << (32 - nobits); // Just shift LSW
 
 	// 2. Initialize
 	quo->len = m - n + 1;
 	quo->vals = alloc(quo->len);
 	qptr = quo->vals;
 
-	for (j = m - n; j >= 0; j--)
+	for (int j = m - n; j >= 0; j--)
 	{
 		// 3. Estimate q[j], using BIGUNION to avoid unnecessary bit shifts
 		qunion.svals.high =   uptr[j + n];
@@ -115,10 +112,10 @@ void bigdiv(BigInt u, BigInt v, BigInt* quo, BigInt* rem)
 				break;
 		}
 		
-		qhat = qunion.value;	// store qunion in normal variable, as we will need to use BIGUNION later
+		ull qhat = qunion.value;	// store qunion in normal variable, as we will need to use BIGUNION later
 
 		// 4. Multiply and subtract, we can reuse qunion
-		carry = 0;
+		long long carry = 0;
 		for (i = 0; i < n; i++)
 		{
 			qunion.value = qhat * (ull)vptr[i];				// Multiply estimated q[j] by divisor word
@@ -166,12 +163,12 @@ void bigdiv(BigInt u, BigInt v, BigInt* quo, BigInt* rem)
 	freearr(uptr);
 }
 
-void bigquo(BigInt a, BigInt b, BigInt* res)
+void bigquo(BigInt* a, BigInt* b, BigInt* res)
 {
 	bigdiv(a, b, res, NULL); // Quotient can be calculated by just not passing remainder pointer
 }
 
-void bigmod(BigInt a, BigInt b, BigInt* res)
+void bigmod(BigInt* a, BigInt* b, BigInt* res)
 {
 	BigInt tmp;
 	bigdiv(a, b, &tmp, res); // Pass temporary quotionent pointer

@@ -19,7 +19,7 @@ ul* alloc(long len)
 	ul* ptr = (ul*)malloc(((size_t) len + 1) * sizeof(ul));
 	if (ptr == 0)
 	{
-		fprintf(stderr, "Not enough memory to alloc BigInt of size %ud", len);
+		fprintf(stderr, "Not enough memory to alloc BigInt of size %ld", len);
 		longjmp(exception, 1);
 	}
 
@@ -29,51 +29,50 @@ ul* alloc(long len)
 /*
  *	Copy BigInt 
  */
-void bigcpy(BigInt from, BigInt* to)
+void bigcpy(BigInt* from, BigInt* to)
 {
-	to->len = from.len;
-	if (isleqone(from)) // 0 or 1, assign constant
+	to->len = from->len;
+	if (isleqone(*from)) // 0 or 1, assign constant
 	{
-		to->vals = (from.vals[0] ? _one_val : _zero_val);
+		to->vals = (from->vals[0] ? _one_val : _zero_val);
 		return;
 	}
 
-	to->vals = alloc(from.len);
-	copyval(from, *to);
+	to->vals = alloc(from->len);
+	copyval(*from, *to);
 }
 
 /*
  *	Add two BigInts
  */
-void bigadd(BigInt a, BigInt b, BigInt* res)
+void bigadd(BigInt* a, BigInt* b, BigInt* res)
 {
 	BigInt dest;
-	register ul* a_ptr, * b_ptr, * dest_ptr;
+	register ul* dest_ptr;
 	long len;
-	ull carry;
 	BIGUNION bigunion;
 
-	if (b.len > a.len) // We want a to be bigger so swap (using dest_ptr as tmp) if needed
+	if (b->len > a->len) // We want a to be bigger so swap (using dest_ptr as tmp) if needed
 	{
-		dest_ptr = a.vals;
-		a.vals = b.vals;
-		b.vals = dest_ptr;
-		len = a.len;
-		a.len = b.len;
-		b.len = len;
+		dest_ptr = a->vals;
+		a->vals = b->vals;
+		b->vals = dest_ptr;
+		len = a->len;
+		a->len = b->len;
+		b->len = len;
 	}
 
 	// Result will be at most 1 longer than a
-	dest.len = a.len + 1;
+	dest.len = a->len + 1;
 	dest.vals = alloc(dest.len);
 
 	// Helper variables
-	carry = 0;
+	ull carry = 0;
 	dest_ptr = dest.vals;
-	a_ptr = a.vals;
-	b_ptr = b.vals;
+	register ul* a_ptr = a->vals;
+	register ul* b_ptr = b->vals;
 
-	len = b.len;
+	len = b->len;
 	while (len--) // We basically do column addition
 	{
 		bigunion.value = ((ull)*a_ptr++) + ((ull)*b_ptr++) + carry;	// Add `a` word + `b` word + carry
@@ -82,10 +81,10 @@ void bigadd(BigInt a, BigInt b, BigInt* res)
 	}
 
 	// b ended, we now only add carry and a
-	len = a.len - b.len;
+	len = a->len - b->len;
 	while (len--)
 	{
-		bigunion.value = ((ull)*a_ptr++) + carry;	// Add `a` word + `b` word + carry
+		bigunion.value = ((ull)*a_ptr++) + carry;	// Add `a` word + carry
 		*dest_ptr++ = bigunion.svals.low;			// low word of sum is result 
 		carry = bigunion.svals.high;				// high word of sum is carry
 	}
@@ -99,11 +98,8 @@ void bigadd(BigInt a, BigInt b, BigInt* res)
  */
 void bigtrim(BigInt* big)
 {
-	register ul* ptr;
-	long len;
-
-	ptr = big->vals + big->len - 1;
-	len = big->len;
+	register ul* ptr = big->vals + big->len - 1;
+	long len = big->len;
 	while (*ptr == 0 && len > 1)  // Traverse `vals` from MSW to LSW and decrease `len` until nonzero word hit, effectively shrinking the `vals` array
 	{
 		--ptr;
@@ -149,14 +145,14 @@ void stobig(char* str, ul base, BigInt* res)
 
 		if (digit_value >= base) // Check whether digit fits in given base
 		{
-			fprintf(stderr, "Digit '%d' is to big for base (%d)!\n", digit_value, base);
+			fprintf(stderr, "Digit '%ld' is to big for base (%ld)!\n", digit_value, base);
 			longjmp(exception, 1);
 		}
 
 		// Multiply by base and add digit
-		bigmul(dest, b, &tmp);
+		bigmul(&dest, &b, &tmp);
 		freeval(dest);
-		bigadd(tmp, digit, &dest);
+		bigadd(&tmp, &digit, &dest);
 		freeval(tmp);
 	}
 
@@ -172,19 +168,18 @@ char* num, * cur_pos, * new_num;
 /*
  *	Print BigInt to given file
  */
-void bigprint(BigInt big, ul basev, FILE* result)
+void bigprint(BigInt* big, ul basev, FILE* result)
 {
-	long len;
 	char c;
 	BigInt a, base, quo, rem;
 
 	base.vals = &basev;	// Make 1 word BigInt to sore base in it
 	base.len = 1;
 
-	len = big.len;
-	if ((len == 1) && (*big.vals < basev)) // Check whether the number is already a digit
+	long len = big->len;
+	if ((len == 1) && (*big->vals < basev)) // Check whether the number is already a digit
 	{
-		c = digitc(*big.vals);	// Get digit character
+		c = digitc(*big->vals);	// Get digit character
 		fputc(c, result);		// Print digit
 		fputc('\n', result);
 		return;
@@ -225,7 +220,7 @@ void bigprint(BigInt big, ul basev, FILE* result)
 			n = new_lineptr_len;
 		}
 
-		bigdiv(a, base, &quo, &rem);	// Divide number by base, the remainder is digit
+		bigdiv(&a, &base, &quo, &rem);	// Divide number by base, the remainder is digit
 		c = digitc(rem.vals[0]);		// Get digit char
 		*cur_pos++ = c;					// Add the char at the end
 		freeval(a);		// We can dispose of a
@@ -245,7 +240,7 @@ void bigprint(BigInt big, ul basev, FILE* result)
 /*
  *	Free number buffer 
  */
-void cleanup()
+void cleanup(void)
 {
 	free(num);
 }

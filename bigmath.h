@@ -53,24 +53,24 @@ extern jmp_buf exception;
 
 
 ul* alloc(long len);
-void bigcpy(BigInt from, BigInt* to);
+void bigcpy(BigInt* from, BigInt* to);
 
-void bigadd(BigInt a, BigInt b, BigInt* res);
+void bigadd(BigInt* a, BigInt* b, BigInt* res);
 
-void bigmul(BigInt a, BigInt b, BigInt* res);
+void bigmul(BigInt* a, BigInt* b, BigInt* res);
 
-void bigdiv(BigInt a, BigInt b, BigInt* quo, BigInt* rem);
-void bigquo(BigInt a, BigInt b, BigInt* res);
-void bigmod(BigInt a, BigInt b, BigInt* res);
+void bigdiv(BigInt* a, BigInt* b, BigInt* quo, BigInt* rem);
+void bigquo(BigInt* a, BigInt* b, BigInt* res);
+void bigmod(BigInt* a, BigInt* b, BigInt* res);
 
-void bigsqr(BigInt big, BigInt* res);
-void bigpow(BigInt a, BigInt b, BigInt* res);
+void bigsqr(BigInt* big, BigInt* res);
+void bigpow(BigInt* a, BigInt* b, BigInt* res);
 
 void bigtrim(BigInt* big);
 
 void stobig(char* str, ul base, BigInt* result);
-void bigprint(BigInt big, ul base, FILE* result);
+void bigprint(BigInt* big, ul base, FILE* result);
 
-void cleanup();
+void cleanup(void);
 
 #endif /* !BIGMATH_H */

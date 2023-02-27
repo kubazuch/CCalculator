@@ -10,6 +10,6 @@ typedef SSIZE_T ssize_t;
 #define MINSSIZE_T  ((SSIZE_T)~MAXSSIZE_T)
 #endif
 
-#define strip(string)	{string[strlen(string) - 1] = '\0';}
+#define strip(string)	{(string)[strlen(string) - 1] = '\0';}
 
 #endif // !UTILS_H
