@@ -1,5 +1,5 @@
 # CCalculator
-Basic calculator written in C that is able to handle Big Integers in arbirtrary (2-16) base. It was written as a final project for the Programming 1 course (winter semester, 2021/22) at the MiNI WUT faculty.
+Basic calculator written in C that is able to handle Big Integers in arbirtrary (2-16) base. It was written as a final project for the Programming 1 course (1st semester, 2021/22) at the MiNI WUT faculty.
 
 ## Usage
 ```
